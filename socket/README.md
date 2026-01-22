@@ -54,22 +54,36 @@ You will use the terminal to run programs. Two important concepts:
 You are given skeleton code with TODO comments. Your job is to complete the missing core networking logic.
 
 ### Client requirements (client.c)
-- Create a TCP socket.
-- Parse server IP/port, build sockaddr_in, and connect.
-- Read from stdin until EOF, sending data in chunks.
-- Handle partial sends (send may send fewer bytes than requested).
-- Handle EINTR for read/send properly.
-- Close the socket and exit cleanly.
+Make a client that reads bytes from stdin and sends them to the server reliably.
+
+Concrete steps (plain language):
+1) Create a TCP socket with `socket(AF_INET, SOCK_STREAM, 0)`.
+2) Read the server IP and port from the command line (for example: `./client 127.0.0.1 12345`).
+3) Build a `sockaddr_in` with that IP/port and call `connect()`.
+4) In a loop, read from stdin into a buffer (for example 4KB). Stop when you hit EOF.
+5) For each buffer, call `send()` in a loop until all bytes are sent. This matters because `send()` may send only part of the buffer.
+6) If `read()` or `send()` returns `-1` with `errno == EINTR`, just retry the same call.
+7) When stdin is done, close the socket and exit.
+
+Expected behavior:
+- The client does not print extra output.
+- The bytes sent must be exactly the bytes read from stdin, in the same order.
 
 ### Server requirements (server.c)
-- Create a TCP listening socket.
-- Set SO_REUSEADDR to allow quick restarts.
-- Bind to INADDR_ANY and the given port.
-- Listen with a small backlog (e.g., 5-10).
-- Accept clients in a loop.
-- For each client: read until EOF and write bytes to stdout.
-- Handle partial writes and EINTR.
-- Keep running unless terminated by an external signal.
+Make a server that accepts many clients and writes all received bytes to stdout.
+
+Concrete steps (plain language):
+1) Create a TCP listening socket with `socket(AF_INET, SOCK_STREAM, 0)`.
+2) Set `SO_REUSEADDR` so you can restart the server quickly.
+3) Bind to `INADDR_ANY` and the port given on the command line.
+4) `listen()` with a small backlog (5-10 is fine).
+5) Loop forever: accept a client, then read from that client until EOF, then close that client socket.
+6) As you read bytes from the client, write them to stdout. `write()` can be partial, so loop until all bytes are written.
+7) If `read()` or `write()` returns `-1` with `errno == EINTR`, retry.
+
+Expected behavior:
+- The server keeps running and can handle multiple clients one after another.
+- It should not add extra formatting; stdout should be exactly what clients send.
 
 ## How to build (step-by-step)
 1) Open a terminal.
@@ -121,12 +135,7 @@ Notes:
   So both sides do NOT use the same port.
 
 ## Automated test script
-We provide a test script that runs 5 tests:
-1) Short text message
-2) Long alphanumeric text payload
-3) Long binary payload
-4) Sequential short messages from separate clients
-5) Concurrent clients sending the same message
+We provide a test script that runs 5 tests. You must pass all five tests.
 
 Run it from this directory:
 
@@ -135,6 +144,32 @@ Run it from this directory:
 ```
 
 If the port is already in use, choose another port (10000-60000).
+
+### What each test means
+1) Short text message  
+   - Sends a small human-readable string (a few bytes).  
+   - Tests the basic connect/send/receive path with the simplest input.
+
+2) Long alphanumeric text payload  
+   - Sends a long string of letters and numbers.  
+   - Tests that your client and server correctly handle data larger than a single `read()` or `send()` call, and that partial sends/reads are handled.
+
+3) Long binary payload  
+   - Sends a long buffer containing arbitrary byte values (not just printable text).  
+   - Tests that you are treating data as raw bytes, not C strings, and that you are not stopping early on `\\0` bytes.
+
+4) Sequential short messages from separate clients  
+   - Starts multiple clients one after another, each sending a short message.  
+   - Tests that the server keeps running and can accept new clients after previous ones close.
+
+5) Concurrent clients sending the same message  
+   - Starts multiple clients at the same time, all sending the same data.  
+   - Tests that the server handles concurrent connections correctly and does not crash or lose data.
+
+Requirement: Your submission must pass all five tests.
+
+## Report to submit
+Submit a short report that contains the output from running the test script. The report can be the terminal output copied into a text or Markdown file. No extra analysis is required.
 
 ## Files in this folder
 - client.c: skeleton with TODOs
