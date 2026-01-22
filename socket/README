@@ -1,12 +1,15 @@
 Socket Programming Assignment (Student Version)
+================================================
 
 Overview
+--------
 You are writing a TCP client/server pair in C. This is a core topic in computer networking
 because sockets are the standard interface for sending and receiving data over a network.
 Even though you will test on a single machine (localhost), the same APIs are used for
 communication across different machines on a real network.
 
 Why you can test on one machine (and still use real networking)
+--------------------------------------------------------------
 Your client/server code works the same on a real network, and you can also test it on a
 single machine. Both are valid:
 
@@ -19,9 +22,11 @@ loop back inside your machine instead of going out over a physical network.
 
 Think of it like this (single machine):
 
-  Client process                             OS TCP/IP stack                         Server process
-  --------------                             -----------------                       --------------
-  ./client 127.0.0.1:12345  ->  [src=127.0.0.1:random_ephemeral -> dst=127.0.0.1:12345]  ->  ./server :12345
+```
+Client process                             OS TCP/IP stack                         Server process
+--------------                             -----------------                       --------------
+./client 127.0.0.1:12345  ->  [src=127.0.0.1:random_ephemeral -> dst=127.0.0.1:12345]  ->  ./server :12345
+```
 
 Even on one machine, the client uses its own ephemeral source port, the server listens on
 its own port, and the OS routes the bytes through the full TCP/IP stack.
@@ -35,28 +40,39 @@ the same. Our automated tests are single-machine for convenience, but you are we
 test across two machines as well.
 
 Basic terminal concepts (very important)
+----------------------------------------
 You will use the terminal to run programs. Two important concepts:
 
 1) stdin (standard input)
    - This is the input data your program reads.
    - By default, stdin comes from the keyboard.
    - When we use a pipe like:
-       printf "Hello\n" | ./client 127.0.0.1 12345
+     
+     ```
+     printf "Hello\n" | ./client 127.0.0.1 12345
+     ```
+
      the output of printf becomes the stdin of ./client.
 
 2) stdout (standard output)
    - This is the output your program writes.
    - By default, stdout is shown on the screen.
    - stdout can be redirected to a file, for example:
-       ./server 12345 > server_output.txt
+     
+     ```
+     ./server 12345 > server_output.txt
+     ```
+
    - Our server writes received bytes to stdout, so you can see what arrived or
      redirect it to a file for comparison.
 
 What you need to implement
+--------------------------
 You are given skeleton code with TODO comments. Your job is to complete the missing
 core networking logic.
 
 Client requirements (client.c)
+------------------------------
 - Create a TCP socket.
 - Parse server IP/port, build sockaddr_in, and connect.
 - Read from stdin until EOF, sending data in chunks.
@@ -65,6 +81,7 @@ Client requirements (client.c)
 - Close the socket and exit cleanly.
 
 Server requirements (server.c)
+------------------------------
 - Create a TCP listening socket.
 - Set SO_REUSEADDR to allow quick restarts.
 - Bind to INADDR_ANY and the given port.
@@ -75,30 +92,53 @@ Server requirements (server.c)
 - Keep running unless terminated by an external signal.
 
 How to build (step-by-step)
+---------------------------
 1) Open a terminal.
 2) Change into the student directory:
-     cd student
+   
+   ```
+   cd student
+   ```
+
 3) Build both programs:
-     make
+   
+   ```
+   make
+   ```
 
 You should now have two executables:
-  ./client
-  ./server
+```
+./client
+./server
+```
 
 This builds:
-  ./client
-  ./server
+```
+./client
+./server
+```
 
 How to test (manual)
+-------------------
 1) Open Terminal A and start the server:
-     ./server 12345
+   
+   ```
+   ./server 12345
+   ```
+
    Keep this terminal open; the server keeps running.
 
 2) Open Terminal B and send a message with the client:
-     printf "Hello\n" | ./client 127.0.0.1 12345
+   
+   ```
+   printf "Hello\n" | ./client 127.0.0.1 12345
+   ```
 
 3) Look at Terminal A. You should see:
-     Hello
+   
+   ```
+   Hello
+   ```
 
 Notes:
 - 127.0.0.1 means "this same machine."
@@ -109,6 +149,7 @@ Notes:
   So both sides do NOT use the same port.
 
 Automated test script
+---------------------
 We provide a test script that runs 5 tests:
 1) Short text message
 2) Long alphanumeric text payload
@@ -117,17 +158,21 @@ We provide a test script that runs 5 tests:
 5) Concurrent clients sending the same message
 
 Run it from the student directory:
-  ./test_client_server.sh 12345
+```
+./test_client_server.sh 12345
+```
 
 If the port is already in use, choose another port (10000-60000).
 
 Files in this folder
+--------------------
 - client.c: student skeleton with TODOs
 - server.c: student skeleton with TODOs
 - Makefile: build client/server
 - test_client_server.sh: test harness with detailed output
 
 Tips
+----
 - Read/write in loops; network calls can be partial.
 - Check return values carefully and print errors with perror.
 - Keep output exactly as received; do not add extra formatting.
