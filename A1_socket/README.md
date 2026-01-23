@@ -54,36 +54,25 @@ You will use the terminal to run programs. Two important concepts:
 You are given skeleton code with TODO comments. Your job is to complete the missing core networking logic.
 
 ### Client requirements (client.c)
-Make a client that reads bytes from stdin and sends them to the server reliably.
+The client is a program that takes an IP address and port, connects to the server, and sends whatever comes in on stdin.
 
-Concrete steps (plain language):
-1) Create a TCP socket with `socket(AF_INET, SOCK_STREAM, 0)`.
-2) Read the server IP and port from the command line (for example: `./client 127.0.0.1 12345`).
-3) Build a `sockaddr_in` with that IP/port and call `connect()`.
-4) In a loop, read from stdin into a buffer (for example 4KB). Stop when you hit EOF.
-5) For each buffer, call `send()` in a loop until all bytes are sent. This matters because `send()` may send only part of the buffer.
-6) If `read()` or `send()` returns `-1` with `errno == EINTR`, just retry the same call.
-7) When stdin is done, close the socket and exit.
-
-Expected behavior:
-- The client does not print extra output.
-- The bytes sent must be exactly the bytes read from stdin, in the same order.
+What it must do (plain language):
+- Accept two command line arguments: server IP and server port.
+- Connect to that server and keep the connection open while sending data.
+- Read all input from stdin until EOF and transmit the same bytes to the server.
+- Preserve byte order and content exactly; do not add, drop, or change anything.
+- Handle large inputs correctly (not just a single line or small buffer).
+- Exit cleanly after all input has been sent.
 
 ### Server requirements (server.c)
-Make a server that accepts many clients and writes all received bytes to stdout.
+The server is a program that listens on a port, accepts client connections, and prints all received bytes to stdout.
 
-Concrete steps (plain language):
-1) Create a TCP listening socket with `socket(AF_INET, SOCK_STREAM, 0)`.
-2) Set `SO_REUSEADDR` so you can restart the server quickly.
-3) Bind to `INADDR_ANY` and the port given on the command line.
-4) `listen()` with a small backlog (5-10 is fine).
-5) Loop forever: accept a client, then read from that client until EOF, then close that client socket.
-6) As you read bytes from the client, write them to stdout. `write()` can be partial, so loop until all bytes are written.
-7) If `read()` or `write()` returns `-1` with `errno == EINTR`, retry.
-
-Expected behavior:
-- The server keeps running and can handle multiple clients one after another.
-- It should not add extra formatting; stdout should be exactly what clients send.
+What it must do (plain language):
+- Accept one command line argument: the port to listen on.
+- Keep running and accept clients continuously (not just a single client).
+- For each client, read all data until the client closes the connection.
+- Write the received bytes to stdout exactly as they arrive, without extra formatting.
+- Handle multiple clients one after another without restarting the server.
 
 ## How to build (step-by-step)
 1) Open a terminal.
