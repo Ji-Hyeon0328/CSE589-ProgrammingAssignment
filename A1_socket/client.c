@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+//https://beej.us/guide/bgnet/html/#setsockoptman
 static void usage(const char *prog) {
     fprintf(stderr, "Usage: %s <server-ip> <server-port>\n", prog);
 }

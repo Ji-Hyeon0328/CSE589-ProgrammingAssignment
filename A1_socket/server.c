@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
-
+//https://beej.us/guide/bgnet/html/#setsockoptman
 static void usage(const char *prog) {
     fprintf(stderr, "Usage: %s <listen-port>\n", prog);
 }
@@ -19,16 +19,45 @@ int main(int argc, char *argv[]) {
     }
 
     char *end = NULL;
-    long port_long = strtol(argv[1], &end, 10);
+    long port_long = strtol(argv[1], &end, 10); //port #
     if (!end || *end != '\0' || port_long <= 0 || port_long > 65535) {
         fprintf(stderr, "Invalid port: %s\n", argv[1]);
         return 1;
     }
 
     // TODO: Create a TCP listen socket (AF_INET, SOCK_STREAM).
+    int listen_sock_fd=socket(AF_INET,SOCK_STREAM,0); //fd: File description
+    if(listen_sock_fd== -1){
+        perror("Generate Socket");
+        exit(1);
+    }
+
     // TODO: Set SO_REUSEADDR on the listen socket.
+    int yes = 1;
+    if (setsockopt(listen_sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))== -1) {
+        perror("setsockopt");
+        exit(1);
+    }
+    
     // TODO: Bind the socket to INADDR_ANY and the given port.
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);  //given IP, - netinet/in.h >> grep -R "INADDR_ANY" /usr/include/netinet/in.h
+    addr.sin_port = htons((uint16_t)port_long);
+
+    if (bind(listen_sock_fd, (struct sockaddr*)&addr, sizeof(addr))== -1){
+        perror("Bind");
+        exit(1);
+    }
+
     // TODO: Listen with a small backlog (e.g., 5-10).
+    int backlog = 8;
+    if(listen(listen_sock_fd,backlog)== -1){
+        perror("listen");
+        exit(1);
+    }
+
 
     // TODO: Accept clients in an infinite loop.
     //   - For each client, read in chunks until EOF.
