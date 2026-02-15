@@ -58,13 +58,50 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-
+    
     // TODO: Accept clients in an infinite loop.
-    //   - For each client, read in chunks until EOF.
-    //   - For each chunk, write those *exact bytes* to stdout.
-    //     Use write(STDOUT_FILENO, ...) in a loop to handle partial writes.
-    //   - Do NOT use printf/fputs or add separators/newlines/prefixes.
-    //   - The test harness compares server stdout byte-for-byte with client input.
+    char buf[5000];
+    // struct sockaddr_in client_addr;
+    // memset(&client_addr,sizeof(addr));
+    while(1){
+        int new_fd = accept(listen_sock_fd, NULL, NULL);
+        if(new_fd == -1){
+            perror("accept");
+            continue; //waiting for another connection from client
+        }
+        //   - For each client, read in chunks until EOF.
+        while(1){
+            ssize_t n = recv(new_fd, buf, sizeof(buf),0);
+            if(n<0){
+                if(errno=EINTR) continue;
+                perror("recv");
+                break;
+            }
+            if(n==0) break; 
+
+            //   - For each chunk, write those *exact bytes* to stdout.
+            //     Use write(STDOUT_FILENO, ...) in a loop to handle partial writes.
+            //   - Do NOT use printf/fputs or add separators/newlines/prefixes.
+            //   - The test harness compares server stdout byte-for-byte with client input.
+            ssize_t total_written=0;
+            while(total_written<n){
+                ssize_t wrt = write(STDOUT_FILENO,buf+total_written, (n-total_written));
+                
+                if(wrt<0){
+                    if (errno=EINTR) continue;
+                    perror("write");
+                    total_written =n;
+                    break;
+                }
+                total_written +=wrt;
+            }
+  
+        }
+
+
+        close(new_fd);
+    }
+
     // TODO: Handle EINTR and other error cases as specified.
 
     // TODO: Close the listen socket before exiting.
