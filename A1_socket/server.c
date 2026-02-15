@@ -25,6 +25,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+
+
     // TODO: Create a TCP listen socket (AF_INET, SOCK_STREAM).
     int listen_sock_fd=socket(AF_INET,SOCK_STREAM,0); //fd: File description
     if(listen_sock_fd== -1){
@@ -32,24 +34,28 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+
     // TODO: Set SO_REUSEADDR on the listen socket.
     int yes = 1;
     if (setsockopt(listen_sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes))== -1) {
         perror("setsockopt");
         exit(1);
     }
-    
+
+
+
     // TODO: Bind the socket to INADDR_ANY and the given port.
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_ANY);  //given IP, - netinet/in.h >> grep -R "INADDR_ANY" /usr/include/netinet/in.h
-    addr.sin_port = htons((uint16_t)port_long);
+    addr.sin_port = htons(port_long);
 
     if (bind(listen_sock_fd, (struct sockaddr*)&addr, sizeof(addr))== -1){
         perror("Bind");
         exit(1);
     }
+
 
     // TODO: Listen with a small backlog (e.g., 5-10).
     int backlog = 8;
@@ -58,7 +64,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    
+
     // TODO: Accept clients in an infinite loop.
     char buf[5000];
     // struct sockaddr_in client_addr;
