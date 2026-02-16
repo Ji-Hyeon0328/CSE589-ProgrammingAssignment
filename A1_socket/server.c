@@ -25,15 +25,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-
-
     // TODO: Create a TCP listen socket (AF_INET, SOCK_STREAM).
     int listen_sock_fd=socket(AF_INET,SOCK_STREAM,0); //fd: File description
     if(listen_sock_fd== -1){
         perror("Generate Socket");
         exit(1);
     }
-
 
     // TODO: Set SO_REUSEADDR on the listen socket.
     int yes = 1;
@@ -78,13 +75,14 @@ int main(int argc, char *argv[]) {
         //   - For each client, read in chunks until EOF.
         while(1){
             ssize_t n = recv(new_fd, buf, sizeof(buf),0);
+            
             if(n<0){
-                if(errno=EINTR) continue;
+                if(errno==EINTR) continue;
                 perror("recv");
                 break;
             }
             if(n==0) break; 
-
+            
             //   - For each chunk, write those *exact bytes* to stdout.
             //     Use write(STDOUT_FILENO, ...) in a loop to handle partial writes.
             //   - Do NOT use printf/fputs or add separators/newlines/prefixes.
@@ -93,8 +91,9 @@ int main(int argc, char *argv[]) {
             while(total_written<n){
                 ssize_t wrt = write(STDOUT_FILENO,buf+total_written, (n-total_written));
                 
+                // TODO: Handle EINTR and other error cases as specified.
                 if(wrt<0){
-                    if (errno=EINTR) continue;
+                    if (errno==EINTR) continue;
                     perror("write");
                     total_written =n;
                     break;
@@ -104,13 +103,11 @@ int main(int argc, char *argv[]) {
   
         }
 
-
+        // TODO: Close the listen socket before exiting.
         close(new_fd);
     }
 
-    // TODO: Handle EINTR and other error cases as specified.
-
-    // TODO: Close the listen socket before exiting.
+    
 
     return 0;
 }

@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     int talk_fd = socket(AF_INET,SOCK_STREAM,0);
     if(talk_fd == -1){
         perror("socket");
-        return 1;
+        exit(1);
     }
 
 
@@ -39,18 +39,19 @@ int main(int argc, char *argv[]) {
     memset(&addr,0,sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port=htons(port_long);
-
+    //"127.0.0.1" <-> argv[1], 
+    //run command: ./client <IP> <Port> for argv[1] case
     if(inet_pton(AF_INET,argv[1],&addr.sin_addr)!=1){
         fprintf(stderr,"Invalid address: %s\n", argv[1]);
         close(talk_fd);
-        return 1;
+        exit(1);
     }
 
     // TODO: Connect to the server.
     if(connect(talk_fd, (struct sockaddr*)&addr, sizeof(addr))== -1){
         perror("connect");
         close(talk_fd);
-        return 1;
+        exit(1);
     }
 
     // TODO: Read from stdin in a loop (read()) and send in chunks.
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]) {
             if (errno==EINTR) continue;
             perror("read");
             close(talk_fd);
-            return 1;
+            exit(1);
         }
 
         // TODO: For each chunk, send the *exact bytes* you read.
@@ -75,10 +76,10 @@ int main(int argc, char *argv[]) {
             ssize_t sent = send(talk_fd,buf+total_sent,(n-total_sent),0);
 
             if(sent<0){
-                if(errno=EINTR) continue;
+                if(errno==EINTR) continue;
                 perror("send");
                 close(talk_fd);
-                return 1;
+                exit(1);
             }
 
             total_sent += sent;
