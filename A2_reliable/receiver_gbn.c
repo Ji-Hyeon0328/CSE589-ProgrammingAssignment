@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "netif.h"
 #include "protocol.h"
 
@@ -7,6 +8,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <time.h>
+//#include <linux/time.h>
 
 static void usage(const char *prog) {
     fprintf(stderr,
@@ -40,7 +42,7 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-
+#pragma region exception
     if (listen_port <= 0 || !peer_ip || peer_port <= 0 || !out_path) {
         usage(argv[0]);
         return 1;
@@ -71,6 +73,7 @@ int main(int argc, char **argv) {
         close(sock);
         return 1;
     }
+#pragma endregion
 
     uint8_t recvbuf[PKT_HDR_LEN + MAX_PAYLOAD];
 
@@ -103,7 +106,7 @@ int main(int argc, char **argv) {
         if (n == 0) {
             continue;
         }
-
+        
         pkt_hdr_t hdr;
         const uint8_t *payload = NULL;
         uint16_t payload_len = 0;
@@ -111,23 +114,36 @@ int main(int argc, char **argv) {
         if (pkt_parse(recvbuf, (size_t)n, &hdr, &payload, &payload_len) != 0) {
             continue;
         }
-        if (hdr.type == PKT_TYPE_DATA) {
+        
+        if (hdr.type == PKT_TYPE_DATA) { 
+            printf("[RECV] seq=%u expected=%u\n", hdr.seq, expected);
+            fflush(stdout);
             // We received an DATA packet, write it to the output file
-			if (payload_len > 0) {
-				fwrite(payload, 1, payload_len, out);
-			}
+            uint8_t ackbuf[PKT_HDR_LEN + MAX_PAYLOAD];
 
+            if(hdr.seq==expected){ //@@@@
+
+                if(payload_len>0){
+                    fwrite(payload,1,payload_len,out);
+                }
+                
+                // expected : recieved data index -> send ack signal with expected val.
+                expected++; 
+
+                
+            }
+            
             // After we receive an DATA packet, we send an ACK
 			// Here we implement an example ACK send call 
             // TODO(student): change ACK policy according to GBN or SR
-
-            uint8_t ackbuf[PKT_HDR_LEN + MAX_PAYLOAD];
-            uint32_t ack_no = hdr.seq + 1;
-            size_t pktlen = pkt_build_ack(ackbuf, sizeof(ackbuf), ack_no);
+            size_t pktlen = pkt_build_ack(ackbuf, sizeof(ackbuf), expected);
+            printf("[RECV] send ACK=%u\n", expected);
+            fflush(stdout);
             if (pktlen > 0) {
                 netif_send(sock, ackbuf, pktlen);
             }
-        } else if (hdr.type == PKT_TYPE_FIN) {
+        }
+        else if (hdr.type == PKT_TYPE_FIN) {
 			// We receive an FIN packet
             // FIN marks end of file; reply with FINACK.
             uint8_t finbuf[PKT_HDR_LEN + MAX_PAYLOAD];

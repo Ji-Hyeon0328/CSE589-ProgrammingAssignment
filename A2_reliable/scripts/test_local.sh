@@ -11,7 +11,7 @@ INPUT_FILE="$TMP_DIR/input.bin"
 OUTPUT_FILE="$TMP_DIR/output.bin"
 export INPUT_FILE
 
-python - <<'PY'
+python3 - <<'PY'
 import os
 import random
 path = os.environ['INPUT_FILE']
