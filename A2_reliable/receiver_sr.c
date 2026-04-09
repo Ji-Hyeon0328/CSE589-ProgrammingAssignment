@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
         } else if (strcmp(argv[i], "--out") == 0 && i + 1 < argc) {
             out_path = argv[++i];
         } else if (strcmp(argv[i], "--win") == 0 && i + 1 < argc) {
-            out_path = argv[++i];
+            win = atoi(argv[++i]);
         } else {
             usage(argv[0]);
             return 1;
@@ -63,6 +63,7 @@ int main(int argc, char **argv) {
     }
 
     #define WINDOW_N (uint32_t)win
+    printf("The window size is: %d", WINDOW_N);
     int32_t window_seq[WINDOW_N];
 
     if (listen_port <= 0 || !peer_ip || peer_port <= 0 || !out_path) {
