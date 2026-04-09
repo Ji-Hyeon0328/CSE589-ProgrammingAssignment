@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <stdbool.h>
 
 static void usage(const char *prog) {
     fprintf(stderr,
@@ -21,6 +22,15 @@ static uint64_t now_ms(void) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)(ts.tv_nsec / 1000000ULL);
 }
+
+// Creating a structure for storing packets
+typedef struct {
+    uint8_t packet[PKT_HDR_LEN + MAX_PAYLOAD];
+    uint64_t packet_len;
+    uint32_t seq;
+    uint64_t timeeout;
+    bool ack;
+} Packet;
 
 int main(int argc, char **argv) {
     int listen_port = -1;
@@ -48,6 +58,8 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
+
+    #define WINDOW_N (uint32_t)win
 
     if (listen_port <= 0 || !peer_ip || peer_port <= 0 || !in_path || win <= 0 || rto_ms <= 0) {
         usage(argv[0]);
@@ -102,47 +114,137 @@ int main(int argc, char **argv) {
     //   - keep a send window and buffer unacked packets
     //   - start/restart timers and retransmit on timeout
     //   - process ACKs to slide the window and compute RTT/RTO
-    while (1) {
-        size_t nread = fread(buf + PKT_HDR_LEN, 1, MAX_PAYLOAD, in);
+
+    //To store n packets
+    Packet window[WINDOW_N];
+    int64_t window_start_idx = 0;
+    size_t nread = 1;
+    bool all_acked = false;
+    
+    while(seq < WINDOW_N && nread != 0){
+
+
+        printf("Sending seq %u\n", seq);
+
+        nread = fread(window[seq].packet + PKT_HDR_LEN, 1, MAX_PAYLOAD, in);
         if (nread == 0) {
             break;
         }
 
         // Build a DATA packet: header + payload.
-        size_t pktlen = pkt_build_data(buf, sizeof(buf), seq, buf + PKT_HDR_LEN, (uint16_t)nread);
+        window[seq].seq = seq;
+        size_t pktlen = pkt_build_data(window[seq].packet, sizeof(window[seq].packet), seq, window[seq].packet + PKT_HDR_LEN, (uint16_t)nread);
         if (pktlen == 0) {
             fprintf(stderr, "packet build failed\n");
             fclose(in);
             close(sock);
             return 1;
         }
-
-        // Example data send call (goes through emulator).
-        // TODO(student): in your reliable sender, send from a window buffer.
-        if (netif_send(sock, buf, pktlen) < 0) {
+        window[seq].packet_len = pktlen;
+        if (netif_send(sock, window[seq].packet, window[seq].packet_len) < 0) {
             perror("sendto");
             fclose(in);
             close(sock);
             return 1;
         }
+        window[seq].timeeout = now_ms() + rto_ms;
+        window[seq].ack = false;
+        seq++;
+        data_sent += 1;
+    }
+
+    while (nread!=0 || !all_acked) {
 
         // Example ACK receive path (non-blocking). We only count ACKs here.
         // TODO(student): use ACKs to slide the window and retransmit on timeout.
         ssize_t rn = netif_recv(sock, recvbuf, sizeof(recvbuf), 0);
         if (rn > 0) {
+            printf("Received ACK!\n");
             pkt_hdr_t hdr;
             if (pkt_parse(recvbuf, (size_t)rn, &hdr, NULL, NULL) == 0) {
                 if (hdr.type == PKT_TYPE_ACK) {
                     ack_rcvd++;
+                    uint32_t ack_seq = hdr.ack;
+                    for (uint32_t j = 0; j < WINDOW_N; j++) {
+                        if (window[j].seq == ack_seq) {
+                            window[j].ack=true;
+                            printf("Received ACK for seq %u\n", ack_seq);
+                            break;
+                        }
+                    }
                 }
             }
         }
 
+
+        int64_t j = window_start_idx;
+        bool cumul_ack = true;
+        all_acked = true;
+        int64_t cumul_ack_idx = -1;
+        while(j < window_start_idx + WINDOW_N && j < seq ){
+            int64_t window_idx = j % WINDOW_N;
+            if(window[window_idx].ack){
+                if(cumul_ack){
+                    cumul_ack_idx = j;
+                }
+            }else {
+                    all_acked = false;
+                    cumul_ack = false;
+                    if(window[window_idx].timeeout < now_ms()){
+                        printf("Retransmitting because of timeout seq %u\n", window[window_idx].seq);
+                        if (netif_send(sock, window[window_idx].packet, window[window_idx].packet_len) < 0) {
+                            perror("sendto");
+                            fclose(in);
+                            close(sock);
+                            return 1;
+                        }
+                        data_retx++;
+                        window[window_idx].timeeout = now_ms() + rto_ms;
+                }
+            }
+            j++;
+        }
+
+        if(cumul_ack_idx != -1){
+            int64_t k = window_start_idx;
+            window_start_idx = cumul_ack_idx + 1;
+            printf("Repopulating from %ld to %ld", k, window_start_idx);
+            while(k <= cumul_ack_idx){
+                int64_t window_idx = k % WINDOW_N;
+                nread = fread(window[window_idx].packet + PKT_HDR_LEN, 1, MAX_PAYLOAD, in);
+                if (nread == 0) {
+                    break;
+                }
+                // Build a DATA packet: header + payload.
+                window[window_idx].seq = seq;
+                size_t pktlen = pkt_build_data(window[window_idx].packet, sizeof(window[window_idx].packet), seq, window[window_idx].packet + PKT_HDR_LEN, (uint16_t)nread);
+                if (pktlen == 0) {
+                    fprintf(stderr, "packet build failed\n");
+                    fclose(in);
+                    close(sock);
+                    return 1;
+                }
+                window[window_idx].packet_len = pktlen;
+                if (netif_send(sock, window[window_idx].packet, window[window_idx].packet_len) < 0) {
+                    perror("sendto");
+                    fclose(in);
+                    close(sock);
+                    return 1;
+                }
+                printf("Sending new seq %u\n", seq);
+                window[window_idx].timeeout = now_ms() + rto_ms;
+                window[window_idx].ack = false;
+                seq++;
+                data_sent += 1;
+                k++;
+            }
+        }
+
+        
         if (start_ms == 0) {
             start_ms = now_ms();
         }
-        data_sent += 1;
-        seq += 1;
+        
     }
 
     // Basic FIN send (no retransmission).
@@ -152,23 +254,30 @@ int main(int argc, char **argv) {
         netif_send(sock, buf, fin_len);
     }
 
-    // Basic wait for FINACK (no retries).
-    uint64_t wait_ms = 0;
-    while (wait_ms < (uint64_t)rto_ms) {
-        ssize_t n = netif_recv(sock, recvbuf, sizeof(recvbuf), 50);
-        if (n > 0) {
-            pkt_hdr_t hdr;
-            if (pkt_parse(recvbuf, (size_t)n, &hdr, NULL, NULL) == 0) {
-                if (hdr.type == PKT_TYPE_FINACK) {
-                    end_ms = now_ms();
-                    break;
-                }
-                if (hdr.type == PKT_TYPE_ACK) {
-                    ack_rcvd++;
+    bool finacked = false;
+    int retries = 0;
+    while (!finacked && retries<10) {
+
+        // Basic wait for FINACK (no retries).
+        uint64_t wait_ms = 0;
+        while (wait_ms < (uint64_t)rto_ms) {
+            ssize_t n = netif_recv(sock, recvbuf, sizeof(recvbuf), 50);
+            if (n > 0) {
+                pkt_hdr_t hdr;
+                if (pkt_parse(recvbuf, (size_t)n, &hdr, NULL, NULL) == 0) {
+                    if (hdr.type == PKT_TYPE_FINACK) {
+                        end_ms = now_ms();
+                        finacked = true;
+                        break;
+                    }
+                    if (hdr.type == PKT_TYPE_ACK) {
+                        ack_rcvd++;
+                    }
                 }
             }
+            wait_ms += 50;
         }
-        wait_ms += 50;
+        retries++;
     }
 
     if (!end_ms) {
@@ -177,7 +286,7 @@ int main(int argc, char **argv) {
 
     double elapsed_ms = (start_ms && end_ms && end_ms > start_ms) ? (double)(end_ms - start_ms) : 1.0;
     double goodput_kbps = (file_size * 8.0) / (elapsed_ms);
-
+    
     printf("FILE_BYTES=%llu\n", (unsigned long long)file_size);
     printf("CHUNK_BYTES=%d\n", MAX_PAYLOAD);
     printf("WIN=%d\n", win);

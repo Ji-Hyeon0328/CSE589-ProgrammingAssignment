@@ -70,7 +70,7 @@ def run_case(mode, sender_bin, receiver_bin, scenario, loss, delay_ms, reorder, 
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    time.sleep(0.2)
+    time.sleep(1)
 
     receiver = subprocess.Popen(
         [receiver_bin,
