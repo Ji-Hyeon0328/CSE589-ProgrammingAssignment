@@ -23,7 +23,6 @@ static uint64_t now_ms(void) {
     return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)(ts.tv_nsec / 1000000ULL);
 }
 
-// Creating a structure for storing packets
 typedef struct {
     uint8_t packet[PKT_HDR_LEN + MAX_PAYLOAD];
     uint64_t packet_len;
@@ -115,7 +114,6 @@ int main(int argc, char **argv) {
     //   - start/restart timers and retransmit on timeout
     //   - process ACKs to slide the window and compute RTT/RTO
 
-    //To store n packets
     Packet window[WINDOW_N];
     int64_t window_start_idx = 0;
     size_t nread = 1;
