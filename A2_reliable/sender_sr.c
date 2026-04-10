@@ -120,6 +120,7 @@ int main(int argc, char **argv) {
     int64_t window_start_idx = 0;
     size_t nread = 1;
     bool all_acked = false;
+    start_ms = now_ms();
     
     while(seq < WINDOW_N && nread != 0){
 
@@ -239,11 +240,6 @@ int main(int argc, char **argv) {
                 k++;
             }
         }
-
-        
-        if (start_ms == 0) {
-            start_ms = now_ms();
-        }
         
     }
 
@@ -255,8 +251,7 @@ int main(int argc, char **argv) {
     }
 
     bool finacked = false;
-    int retries = 0;
-    while (!finacked && retries<10) {
+    while (!finacked) {
 
         // Basic wait for FINACK (no retries).
         uint64_t wait_ms = 0;
@@ -277,7 +272,9 @@ int main(int argc, char **argv) {
             }
             wait_ms += 50;
         }
-        retries++;
+        if(!finacked){
+            netif_send(sock, buf, fin_len);
+        }
     }
 
     if (!end_ms) {
