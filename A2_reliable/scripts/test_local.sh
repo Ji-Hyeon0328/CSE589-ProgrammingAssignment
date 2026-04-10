@@ -29,7 +29,7 @@ trap cleanup EXIT
 
 ./emulator.py --loss 0.05 --delay_ms 50 --reorder 0.05 --seed 1 &
 EMU_PID=$!
-
+sleep 1
 ./receiver_gbn --listen 10001 --peer_ip 127.0.0.1 --peer_port 10000 --out "$OUTPUT_FILE" &
 RCV_PID=$!
 

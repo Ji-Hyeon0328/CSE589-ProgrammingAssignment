@@ -210,15 +210,15 @@ int main(int argc, char **argv) {
                             timer_running=1;
                         }
                     }
-                printf("[SENDER] ACK=%u base=%u next_seq=%u\n", ack, base, next_seq);
-                fflush(stdout);        
+                //printf("[SENDER] ACK=%u base=%u next_seq=%u\n", ack, base, next_seq);
+                //fflush(stdout);        
                 }
             }
             
         }
 
-        printf("[SENDER] TIMEOUT base=%u next_seq=%u\n", base, next_seq);
-        fflush(stdout);
+        //printf("[SENDER] TIMEOUT base=%u next_seq=%u\n", base, next_seq);
+        //fflush(stdout);
         if (timer_running && (now_ms()-timer_start_ms >= (uint64_t)rto_ms)){
             for (uint32_t s = base; s < next_seq; s++){
                 gbn_slot_t* slot = &window[s % win];
@@ -240,30 +240,56 @@ int main(int argc, char **argv) {
         
     }
 
-    // Basic FIN send (no retransmission).
-    // Build and send FIN to mark end of file.
-    size_t fin_len = pkt_build_fin(buf, sizeof(buf), next_seq);
-    if (fin_len > 0) {
-        netif_send(sock, buf, fin_len);
-    }
+    // Fin Ack sending - let's make hash_ok all as 1
+    int fin_acked = 0;
+    uint64_t fin_start_ms = now_ms();
+    uint64_t last_fin_send_ms = 0;
 
-    // Basic wait for FINACK (no retries).
-    uint64_t wait_ms = 0;
-    while (wait_ms < (uint64_t)rto_ms) {
+    while (!fin_acked && (now_ms() - fin_start_ms < 3000)) {
+        uint64_t now = now_ms();
+
+        if (last_fin_send_ms == 0 || (now - last_fin_send_ms >= (uint64_t)rto_ms)) {
+            size_t fin_len = pkt_build_fin(buf, sizeof(buf), next_seq);
+
+            if (fin_len == 0) {
+                free(window);
+                fclose(in);
+                close(sock);
+                return 1;
+            }
+
+            if (netif_send(sock, buf, fin_len) < 0) {
+                free(window);
+                fclose(in);
+                close(sock);
+                return 1;
+            }
+
+            last_fin_send_ms = now;
+        }
+
         ssize_t n = netif_recv(sock, recvbuf, sizeof(recvbuf), 50);
         if (n > 0) {
             pkt_hdr_t hdr;
             if (pkt_parse(recvbuf, (size_t)n, &hdr, NULL, NULL) == 0) {
                 if (hdr.type == PKT_TYPE_FINACK) {
+                    fin_acked = 1;
                     end_ms = now_ms();
                     break;
                 }
+
                 if (hdr.type == PKT_TYPE_ACK) {
                     ack_rcvd++;
                 }
             }
         }
-        wait_ms += 50;
+    }
+
+    if (!fin_acked) {
+        free(window);
+        fclose(in);
+        close(sock);
+        return 1;
     }
 
     if (!end_ms) {

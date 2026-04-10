@@ -116,8 +116,8 @@ int main(int argc, char **argv) {
         }
         
         if (hdr.type == PKT_TYPE_DATA) { 
-            printf("[RECV] seq=%u expected=%u\n", hdr.seq, expected);
-            fflush(stdout);
+            //printf("[RECV] seq=%u expected=%u\n", hdr.seq, expected);
+            //fflush(stdout);
             // We received an DATA packet, write it to the output file
             uint8_t ackbuf[PKT_HDR_LEN + MAX_PAYLOAD];
 
@@ -129,7 +129,6 @@ int main(int argc, char **argv) {
                 
                 // expected : recieved data index -> send ack signal with expected val.
                 expected++; 
-
                 
             }
             
@@ -137,8 +136,8 @@ int main(int argc, char **argv) {
 			// Here we implement an example ACK send call 
             // TODO(student): change ACK policy according to GBN or SR
             size_t pktlen = pkt_build_ack(ackbuf, sizeof(ackbuf), expected);
-            printf("[RECV] send ACK=%u\n", expected);
-            fflush(stdout);
+            // printf("[RECV] send ACK=%u\n", expected);
+            // fflush(stdout);
             if (pktlen > 0) {
                 netif_send(sock, ackbuf, pktlen);
             }
