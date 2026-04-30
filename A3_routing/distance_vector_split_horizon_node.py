@@ -3,7 +3,7 @@ import json
 
 class Distance_Vector_Split_Horizon_Node(Node):
 
-    INF=200
+    INF=10**9
     def __init__(self, id):
         super().__init__(id)
         # Add your own instance variables here if needed.
@@ -14,6 +14,9 @@ class Distance_Vector_Split_Horizon_Node(Node):
 
         self.known_destinations={self.id}
         self.last_sent={}
+
+        self.paths={self.id:[self.id]}
+        self.neighbor_paths={}
 
     def __str__(self):
         # Return a human-readable string describing this node's current state
@@ -52,14 +55,24 @@ class Distance_Vector_Split_Horizon_Node(Node):
         self.known_destinations.add(neighbor)
 
         if latency == -1: 
+            # #hold down
+            # for dest, hop in list(self.next_hop.items()):
+            #     if dest!= self.id and hop == neighbor:
+            #         #self._start_hold_down(dest)
+            #         self._block_next_hop(dest, neighbor)
+            # #@@@
+
             self.links.pop(neighbor,None)
             self.neighbor_vectors.pop(neighbor,None)
 
             self.last_sent.pop(neighbor,None)
+            self.neighbor_paths.pop(neighbor,None)
 
         else:
             self.links[neighbor]=latency
             self.neighbor_vectors.setdefault(neighbor,{neighbor:0})
+
+            self.neighbor_paths.setdefault(neighbor,{neighbor: [neighbor]})
         
         self._recompute_routes()
 
@@ -116,12 +129,35 @@ class Distance_Vector_Split_Horizon_Node(Node):
             else:
                 received_distvec[dest]= cost
 
+        advertised_paths = msg.get("path_vector",{})
+        received_paths={}
+        for dest, path in advertised_paths.items():
+            try:
+                dest = int(dest)
+            except:
+                continue
+
+            if isinstance(path,list):
+                try:
+                    received_paths[dest]=[int(x) for x in path]
+                except:
+                    received_paths[dest]=[]
+
+            
         old_distvec=self.distance_vector.copy()
         old_next_hop=self.next_hop.copy()
 
         self.known_destinations.update(received_distvec.keys())
+
+        # # hold down
+        # for dest, cost in received_distvec.items():
+        #     if dest != self.id and self.next_hop.get(dest) == source and cost >= self.INF:
+        #         #self._start_hold_down(dest)
+        #         self._block_next_hop(dest, source)
+        # #@@@
         
         self.neighbor_vectors[source] = received_distvec
+        self.neighbor_paths[source]=received_paths
         self._recompute_routes()
 
         if old_distvec!= self.distance_vector or old_next_hop != self.next_hop:
@@ -158,6 +194,7 @@ class Distance_Vector_Split_Horizon_Node(Node):
         #Bellman Ford distance vector : D_x(y) = min_v [ c(x, v) + D_v(y) ]
         new_distvec = {self.id:0}
         new_next_hop={self.id: self.id}
+        new_paths = {self.id : [self.id]}
 
         dests =set(self.known_destinations)#{self.id}
         dests.update(self.links.keys())
@@ -170,76 +207,172 @@ class Distance_Vector_Split_Horizon_Node(Node):
         for dest in dests:
             if dest == self.id:
                 continue
+            
+            #hold down
+            # if dest in self.hold_down and dest not in self.links:
+            #     new_distvec[dest]=self.INF
+            #     new_next_hop[dest]=-1
+            #     continue
+            #@@@
 
             best_cost = self.INF
             best_next_hop=-1
+            best_path=[]
 
             if dest in self.links:
                 best_cost=self.links[dest]
                 best_next_hop=dest
-            
+                best_path =[self.id,dest]
+
             for neighbor, link_cost in self.links.items():
+                # #blocked hops
+                # if neighbor in self.blocked_next_hops.get(dest,set()):
+                #     continue
+                # #@@@
+
                 neighbor_vector= self.neighbor_vectors.get(neighbor,{})
                 neighbor_cost = neighbor_vector.get(dest, self.INF)
+
+                if neighbor_cost >= self.INF:
+                    continue
+                
+                neighbor_path = self.neighbor_paths.get(neighbor,{}).get(dest)
+                if neighbor_path is None:
+                    if dest == neighbor:
+                        neighbor_path = [neighbor]
+                    else:
+                        continue
+                
+                if not isinstance(neighbor_path,list):
+                    continue
+
+                if self.id in neighbor_path:
+                    continue
+
                 cand_cost = link_cost + neighbor_cost
+                cand_path = [self.id]+neighbor_path
 
                 if cand_cost <best_cost:
                     best_cost=cand_cost
                     best_next_hop=neighbor
+                    best_path = cand_path
 
                 elif cand_cost == best_cost and best_next_hop != -1:
-                    if neighbor <best_next_hop:
+                    if len(cand_path) < len(best_path):
                         best_next_hop=neighbor
+                        best_path = cand_path
+
+                    elif len(cand_path)==len(best_path) and neighbor < best_next_hop:
+                        best_next_hop = neighbor
+                        best_path = cand_path
+
+                    # if neighbor <best_next_hop:
+                    #     best_next_hop=neighbor
 
             
             if best_next_hop != -1 and best_cost<self.INF:
                 new_distvec[dest] = best_cost
                 new_next_hop[dest]=best_next_hop
+                new_paths[dest]= best_path
             else:
-
-                if self._all_neighbors_say_unreachable(dest):
-                    self.known_destinations.discard(dest)
-                    continue
-
                 new_distvec[dest]=self.INF
                 new_next_hop[dest]=-1
+                new_paths[dest]=[]
 
         self.distance_vector = new_distvec
         self.next_hop=new_next_hop
+        self.paths = new_paths
 
+        #@@@
+        #self._decrease_hold_down()
+        #self._clear_block_if_route_changed()
+        #self._decay_blocked_next_hops()
     
     def _send_distvec_poisoned_reverse(self):
         for neighbor in list(self.links.keys()):
             poisoned_distvec={}
+            poisoned_paths={}
 
             for dest,cost in self.distance_vector.items():
                 if dest!= self.id and dest != neighbor and self.next_hop.get(dest) == neighbor:
                     poisoned_distvec[dest]=self.INF
+                    poisoned_paths[dest]=[]
 
                 elif cost >= self.INF:
                     poisoned_distvec[dest]=self.INF
+                    poisoned_paths[dest] = []
 
                 else:
                     poisoned_distvec[dest]=cost
-
+                    poisoned_paths[dest]=self.paths.get(dest,[])
             
-            if self.last_sent.get(neighbor) == poisoned_distvec:
+            advertised_state ={
+                "distance_vector":poisoned_distvec,
+                "path_vector":poisoned_paths
+            }
+
+            if self.last_sent.get(neighbor) == advertised_state:
                 continue
 
-            self.last_sent[neighbor]=poisoned_distvec.copy()
+            self.last_sent[neighbor]={
+                "distance_vector": poisoned_distvec.copy(),
+                "path_vector": {d: list(p) for d, p in poisoned_paths.items()}
+            }
 
-            msg = json.dumps({"source":self.id, "distance_vector":poisoned_distvec})
+            msg = json.dumps({"source":self.id, "distance_vector":poisoned_distvec, "path_vector": poisoned_paths})
             self.send_to_neighbor(neighbor, msg)
     
-    def _all_neighbors_say_unreachable(self,dest):
-        if dest in self.links:
-            return False
-        
-        for neighbor in self.links:
-            vector = self.neighbor_vectors.get(neighbor,{})
-            cost = vector.get(dest,self.INF)
+    # def _start_hold_down(self,dest):
+    #     if dest == self.id:
+    #         return
 
-            if cost < self.INF:
-                return False
-            
-        return True
+    #     self.hold_down[dest]=max(self.hold_down.get(dest,0),3)
+
+
+    # def _decrease_hold_down(self):
+    #     expired =[]
+
+    #     for dest in list(self.hold_down.keys()):
+    #         self.hold_down[dest] -=1
+    #         if self.hold_down[dest]<=0:
+    #             expired.append(dest)
+
+    #     for dest in expired:
+    #         self.hold_down.pop(dest,None)
+
+    # def _block_next_hop(self, dest, neighbor):
+    #     if dest == self.id:
+    #         return
+    #     if neighbor == -1:
+    #         return
+        
+    #     if dest not in self.blocked_next_hops:
+    #         self.blocked_next_hops[dest]={}
+
+    #     self.blocked_next_hops[dest][neighbor] = self.Block_TTL
+
+    # def _isblocked(self,dest,neighbor):
+    #     return (
+    #         dest in self.blocked_next_hops
+    #         and neighbor in self.blocked_next_hops[dest]
+    #         and self.blocked_next_hops[dest][neighbor]>0
+    #     )
+    
+    # def _decay_blocked_next_hops(self):
+    #     for dest in list(self.blocked_next_hops.keys()):
+    #         for neighbor in list(self.blocked_next_hops[dest].keys()):
+    #             self.blocked_next_hops[dest][neighbor]-=1
+
+    #             if self.blocked_next_hops[dest][neighbor] <= 0:
+    #                 del self.blocked_next_hops[dest][neighbor]
+
+    #         if not self.blocked_next_hops[dest]:
+    #             del self.blocked_next_hops[dest]
+
+    # def _clear_block_if_route_changed(self):
+    #     for dest in list(self.blocked_next_hops.keys()):
+    #         current_hop = self.next_hop.get(dest,-1)
+
+    #         if current_hop!=-1 and current_hop not in self.blocked_next_hops[dest]:
+    #             self.blocked_next_hops.pop(dest,None)
+        

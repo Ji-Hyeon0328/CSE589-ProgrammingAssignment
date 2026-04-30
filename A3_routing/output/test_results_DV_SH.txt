@@ -1,75 +1,32 @@
 ========================================================================
   Routing Simulator Test Report
   Algorithm : DV_SH
-  Date/Time : 2026-04-29 21:02:12
+  Date/Time : 2026-04-29 23:43:54
 ========================================================================
 
 SUMMARY
 ------------------------------------------------------------------------
   File                                           Msgs     Checks  Result
   -------------------------------------------- ------  ---------  ------
-  events/testing_suite/case_1.event                13        1/1  PASS
-  events/testing_suite/case_2.event                15        2/2  PASS
-  events/testing_suite/case_3.event               100        1/1  PASS
-  events/testing_suite/case_4.event              2313        1/2  FAIL
-  events/testing_suite/case_5.event               153        3/3  PASS
-  events/testing_suite/case_6.event               339        2/2  PASS
-  events/testing_suite/case_7.event              2714        1/1  PASS
-  events/testing_suite/case_8.event             84581        2/2  PASS
-  events/testing_suite/case_9.event               210        4/4  PASS
+  events/demo.event                               102        9/9  PASS
   -------------------------------------------- ------  ---------  ------
-  TOTAL                                         90438      17/18  1 FAILED
+  TOTAL                                           102        9/9  ALL PASS
 
 DETAIL
 ------------------------------------------------------------------------
 
-  [PASS]  events/testing_suite/case_1.event
-  Messages sent: 13
-    [T=  1000] DRAW_PATH  10→30                 PASS
-
-  [PASS]  events/testing_suite/case_2.event
-  Messages sent: 15
-    [T=  1000] DRAW_PATH  1→3                   PASS
-    [T=  2000] DRAW_PATH  1→3                   PASS
-
-  [PASS]  events/testing_suite/case_3.event
-  Messages sent: 100
-    [T=   100] DRAW_TREE  tree from 1           PASS
-
-  [FAIL]  events/testing_suite/case_4.event
-  Messages sent: 2313
-    [T=    20] DRAW_TREE  tree from 1           PASS
-    [T=11000000] DRAW_TREE  1 → 5                 FAIL
-      correct_path: (length=10000010) [1, 2, 5]
-      student_path: (length=inf) []
-
-  [PASS]  events/testing_suite/case_5.event
-  Messages sent: 153
-    [T=   500] DRAW_TREE  tree from 6           PASS
-    [T=   700] DRAW_TREE  tree from 6           PASS
-    [T=   900] DRAW_TREE  tree from 6           PASS
-
-  [PASS]  events/testing_suite/case_6.event
-  Messages sent: 339
-    [T=   500] DRAW_PATH  0→4                   PASS
-    [T=   800] DRAW_PATH  0→4                   PASS
-
-  [PASS]  events/testing_suite/case_7.event
-  Messages sent: 2714
-    [T= 10000] DRAW_TREE  tree from 11          PASS
-
-  [PASS]  events/testing_suite/case_8.event
-  Messages sent: 84581
-    [T= 10000] DRAW_PATH  1→50                  PASS
-    [T= 10001] DRAW_PATH  2→98                  PASS
-
-  [PASS]  events/testing_suite/case_9.event
-  Messages sent: 210
-    [T=    50] DRAW_TREE  tree from 0           PASS
+  [PASS]  events/demo.event
+  Messages sent: 102
     [T=   200] DRAW_TREE  tree from 0           PASS
-    [T=   300] DRAW_TREE  tree from 0           PASS
+    [T=   500] DRAW_PATH  0→1                   PASS
     [T=   500] DRAW_TREE  tree from 0           PASS
+    [T=   800] DRAW_PATH  0→1                   PASS
+    [T=   800] DRAW_PATH  0→4                   PASS
+    [T=   800] DRAW_TREE  tree from 0           PASS
+    [T=  1100] DRAW_PATH  0→4                   PASS
+    [T=  1100] DRAW_TREE  tree from 0           PASS
+    [T=  1400] DRAW_TREE  tree from 0           PASS
 
 ========================================================================
-  Overall result: 1 FAILED  (17/18 checks, 90438 messages)
+  Overall result: ALL PASS  (9/9 checks, 102 messages)
 ========================================================================
