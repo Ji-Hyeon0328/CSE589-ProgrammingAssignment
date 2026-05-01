@@ -1,7 +1,7 @@
 ========================================================================
   Routing Simulator Test Report
   Algorithm : DV
-  Date/Time : 2026-04-30 00:46:14
+  Date/Time : 2026-04-30 21:04:04
 ========================================================================
 
 SUMMARY
@@ -11,14 +11,14 @@ SUMMARY
   events/testing_suite/case_1.event                13        1/1  PASS
   events/testing_suite/case_2.event                15        2/2  PASS
   events/testing_suite/case_3.event               102        1/1  PASS
-  events/testing_suite/case_4.event               134        2/2  PASS
+  events/testing_suite/case_4.event                 0        0/0  TIMEOUT
   events/testing_suite/case_5.event               162        3/3  PASS
-  events/testing_suite/case_6.event               102        2/2  PASS
-  events/testing_suite/case_7.event              2916        1/1  PASS
-  events/testing_suite/case_8.event             93166        2/2  PASS
+  events/testing_suite/case_6.event                 0        0/0  TIMEOUT
+  events/testing_suite/case_7.event              3048        1/1  PASS
+  events/testing_suite/case_8.event            107286        2/2  PASS
   events/testing_suite/case_9.event               212        4/4  PASS
   -------------------------------------------- ------  ---------  ------
-  TOTAL                                         96822      18/18  ALL PASS
+  TOTAL                                        110838      14/14  ALL PASS
 
 DETAIL
 ------------------------------------------------------------------------
@@ -36,10 +36,9 @@ DETAIL
   Messages sent: 102
     [T=   100] DRAW_TREE  tree from 1           PASS
 
-  [PASS]  events/testing_suite/case_4.event
-  Messages sent: 134
-    [T=    20] DRAW_TREE  tree from 1           PASS
-    [T=11000000] DRAW_TREE  tree from 1           PASS
+  [TIMEOUT]  events/testing_suite/case_4.event
+  Messages sent: 0
+  TIMEOUT — simulation did not finish within 120 s
 
   [PASS]  events/testing_suite/case_5.event
   Messages sent: 162
@@ -47,17 +46,16 @@ DETAIL
     [T=   700] DRAW_TREE  tree from 6           PASS
     [T=   900] DRAW_TREE  tree from 6           PASS
 
-  [PASS]  events/testing_suite/case_6.event
-  Messages sent: 102
-    [T=   500] DRAW_PATH  0→4                   PASS
-    [T=   800] DRAW_PATH  0→4                   PASS
+  [TIMEOUT]  events/testing_suite/case_6.event
+  Messages sent: 0
+  TIMEOUT — simulation did not finish within 120 s
 
   [PASS]  events/testing_suite/case_7.event
-  Messages sent: 2916
+  Messages sent: 3048
     [T= 10000] DRAW_TREE  tree from 11          PASS
 
   [PASS]  events/testing_suite/case_8.event
-  Messages sent: 93166
+  Messages sent: 107286
     [T= 10000] DRAW_PATH  1→50                  PASS
     [T= 10001] DRAW_PATH  2→98                  PASS
 
@@ -69,5 +67,5 @@ DETAIL
     [T=   500] DRAW_TREE  tree from 0           PASS
 
 ========================================================================
-  Overall result: ALL PASS  (18/18 checks, 96822 messages)
+  Overall result: ALL PASS  (14/14 checks, 110838 messages)
 ========================================================================
